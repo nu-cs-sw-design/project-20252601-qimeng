@@ -1,0 +1,208 @@
+@startuml PayToolBackend
+
+' ======================
+' Model Layer
+' ======================
+package "Model" {
+    class User {
+        +id: Long
+        +username: String
+        +password: String
+        +email: String
+        +name: String
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+    }
+
+    class Group {
+        +id: Long
+        +totalAmount: Double
+        +description: String
+        +status: GroupStatus
+        +qrCode: String
+        +totalPeople: Integer
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+    }
+
+    class GroupMember {
+        +id: Long
+        +amount: Double
+        +status: MemberStatus
+        +joinedAt: LocalDateTime
+    }
+
+    class PaymentCard {
+        +id: Long
+        +cardNumber: String
+        +amount: Double
+        +status: PaymentCardStatus
+        +createdAt: LocalDateTime
+    }
+
+    class Transaction {
+        +id: Long
+        +amount: BigDecimal
+        +status: TransactionStatus
+        +description: String
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+    }
+
+    class AuthPayload {
+        +token: String
+    }
+
+    enum GroupStatus {
+      PENDING
+      ACTIVE
+      COMPLETED
+      CANCELLED
+    }
+
+    enum MemberStatus {
+      PENDING
+      AGREED
+      DISAGREED
+    }
+
+    enum PaymentCardStatus {
+      PENDING
+      ACTIVE
+      USED
+      EXPIRED
+    }
+
+    enum TransactionStatus {
+      PENDING
+      COMPLETED
+      FAILED
+      CANCELLED
+    }
+
+}
+
+
+User "1" <-- "many" Group
+User "1" <-- "many" GroupMember
+User "1" <-- "many" Transaction
+Group "1" <-- "many" GroupMember
+Group "1" <-- "many" PaymentCard
+Transaction "many" --> "1" User
+GroupMember "many" --> "1" Group
+PaymentCard "many" --> "1" Group
+
+AuthPayload --> User
+
+
+' ======================
+' Repository Layer
+' ======================
+package "Repository" {
+    interface UserRepository
+    interface GroupRepository
+    interface GroupMemberRepository
+    interface PaymentCardRepository
+    interface TransactionRepository
+}
+
+UserRepository ..> User
+GroupRepository ..> Group
+GroupMemberRepository ..> GroupMember
+PaymentCardRepository ..> PaymentCard
+TransactionRepository ..> Transaction
+
+
+' ======================
+' Service Layer
+' ======================
+package "Service" {
+    class GoogleAuthService {
+        +authenticateGoogleUser(idToken: String)
+    }
+
+    class GroupPublisher {
+        +getGroupStatusFlux()
+        +getMemberStatusFlux()
+        +publishGroupStatus()
+        +publishMemberStatus()
+    }
+
+    class GroupService {
+        +joinGroup()
+        +updateMemberStatus()
+        +updateGroupStatus()
+    }
+}
+
+GoogleAuthService --> UserRepository
+GoogleAuthService --> JwtTokenProvider
+
+GroupService --> GroupRepository
+GroupService --> UserRepository
+GroupService --> GroupMemberRepository
+GroupService --> GroupPublisher
+
+GroupPublisher ..> Group
+GroupPublisher ..> GroupMember
+
+
+' ======================
+' GraphQL Layer
+' ======================
+package "GraphQL" {
+    class QueryResolver
+    class MutationResolver
+    class SubscriptionResolver
+}
+
+QueryResolver --> UserRepository
+QueryResolver --> GroupRepository
+QueryResolver --> GroupMemberRepository
+QueryResolver --> TransactionRepository
+
+MutationResolver --> UserRepository
+MutationResolver --> GroupRepository
+MutationResolver --> GroupMemberRepository
+MutationResolver --> PaymentCardRepository
+MutationResolver --> TransactionRepository
+MutationResolver --> GroupService
+MutationResolver --> SubscriptionResolver
+
+SubscriptionResolver --> GroupPublisher
+
+
+' ======================
+' REST Layer
+' ======================
+package "Controller" {
+    class AuthController
+    class GoogleAuthController
+    class GlobalExceptionHandler
+}
+
+AuthController --> GoogleAuthService
+GoogleAuthController --> GoogleAuthService
+GlobalExceptionHandler ..> ErrorResponse
+
+
+' ======================
+' Security / Config
+' ======================
+package "Security" {
+    class JwtTokenProvider
+    class SecurityConfig
+    class GoogleOAuth2Config
+    class GraphQLConfig
+}
+
+JwtTokenProvider ..> User
+SecurityConfig ..> JwtTokenProvider
+
+
+' ======================
+' Application
+' ======================
+class PayToolApplication
+
+@enduml
