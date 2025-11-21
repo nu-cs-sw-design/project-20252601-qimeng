@@ -41,16 +41,7 @@ cd final-project-paytool
 
 ### 2. Backend Setup
 
-1. Configure Database
-   - Create MySQL database
-   - Update database configuration in `backend/src/main/resources/application.properties`:
-     ```properties
-     spring.datasource.url=jdbc:mysql://localhost:3306/paytool
-     spring.datasource.username=your_username
-     spring.datasource.password=your_password
-     ```
-
-2. Start Backend Service
+Start Backend Service
    ```bash
    cd backend
    sdk env
