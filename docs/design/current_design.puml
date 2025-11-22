@@ -1,0 +1,219 @@
+@startuml PayToolBackend
+
+' ======================
+' Model Layer
+' ======================
+package "Model" {
+
+    class User {
+        +id: Long
+        +username: String
+        +password: String
+        +email: String
+        +name: String
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+    }
+
+    class Group {
+        +id: Long
+        +totalAmount: Double
+        +description: String
+        +status: GroupStatus
+        +qrCode: String
+        +totalPeople: Integer
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+    }
+
+    class GroupMember {
+        +id: Long
+        +amount: Double
+        +status: MemberStatus
+        +joinedAt: LocalDateTime
+    }
+
+    class PaymentCard {
+        +id: Long
+        +cardNumber: String
+        +amount: Double
+        +status: PaymentCardStatus
+        +createdAt: LocalDateTime
+    }
+
+    class Transaction {
+        +id: Long
+        +amount: BigDecimal
+        +status: TransactionStatus
+        +description: String
+        +createdAt: LocalDateTime
+        +updatedAt: LocalDateTime
+    }
+
+    class AuthPayload {
+        +token: String
+        +user: User
+    }
+
+    enum GroupStatus {
+        PENDING
+        ACTIVE
+        COMPLETED
+        CANCELLED
+    }
+
+    enum MemberStatus {
+        PENDING
+        AGREED
+        DISAGREED
+    }
+
+    enum PaymentCardStatus {
+        PENDING
+        ACTIVE
+        USED
+        EXPIRED
+    }
+
+    enum TransactionStatus {
+        PENDING
+        COMPLETED
+        FAILED
+        CANCELLED
+    }
+}
+
+' --- Associations (no labels) ---
+User "1" <-- "many" Group
+User "1" <-- "many" GroupMember
+User "1" <-- "many" Transaction
+Group "1" <-- "many" GroupMember
+Group "1" <-- "many" PaymentCard
+Transaction "many" --> "1" User
+GroupMember "many" --> "1" Group
+PaymentCard "many" --> "1" Group
+AuthPayload --> User
+
+
+' ======================
+' Repository Layer
+' ======================
+package "Repository" {
+    interface UserRepository
+    interface GroupRepository
+    interface GroupMemberRepository
+    interface PaymentCardRepository
+    interface TransactionRepository
+}
+
+UserRepository ..> User
+GroupRepository ..> Group
+GroupMemberRepository ..> GroupMember
+PaymentCardRepository ..> PaymentCard
+TransactionRepository ..> Transaction
+
+
+' ======================
+' Service Layer
+' ======================
+package "Service" {
+    class UserService
+    class GoogleAuthService
+    class AuthService
+    class GroupPublisher
+    class GroupService
+    class PaymentCardService
+    class TransactionService
+}
+
+UserService --> UserRepository
+UserService --> PasswordEncoder
+
+GoogleAuthService --> UserRepository
+GoogleAuthService --> JwtTokenProvider
+
+AuthService --> UserRepository
+AuthService --> PasswordEncoder
+AuthService --> JwtTokenProvider
+
+GroupService --> GroupRepository
+GroupService --> GroupMemberRepository
+GroupService --> UserRepository
+GroupService --> GroupPublisher
+
+GroupPublisher ..> Group
+GroupPublisher ..> GroupMember
+
+PaymentCardService --> PaymentCardRepository
+PaymentCardService --> GroupRepository
+PaymentCardService --> GroupMemberRepository
+PaymentCardService --> GroupPublisher
+
+TransactionService --> TransactionRepository
+TransactionService --> UserRepository
+
+
+' ======================
+' Controller Layer (REST + GraphQL)
+' ======================
+package "Controller" {
+    class QueryResolver
+    class MutationResolver
+    class SubscriptionResolver
+
+    class AuthController
+    class GoogleAuthController
+    class GlobalExceptionHandler
+}
+
+' GraphQL resolvers depend on Services only
+QueryResolver --> UserService
+QueryResolver --> GroupService
+QueryResolver --> TransactionService
+
+MutationResolver --> UserService
+MutationResolver --> GroupService
+MutationResolver --> TransactionService
+MutationResolver --> PaymentCardService
+MutationResolver --> AuthService
+
+SubscriptionResolver --> GroupPublisher
+
+' REST controllers
+AuthController --> GoogleAuthService
+GoogleAuthController --> GoogleAuthService
+GlobalExceptionHandler ..> ErrorResponse
+GlobalExceptionHandler ..> CustomException
+
+
+' ======================
+' Exception Layer
+' ======================
+package "Exception" {
+    class CustomException
+    class GraphQLExceptionHandler
+}
+
+GraphQLExceptionHandler ..> CustomException
+
+
+' ======================
+' Security / Config
+' ======================
+package "Security" {
+    class JwtTokenProvider
+    class SecurityConfig
+    class GoogleOAuth2Config
+    class GraphQLConfig
+}
+
+JwtTokenProvider ..> User
+SecurityConfig ..> JwtTokenProvider
+
+
+' ======================
+' Application
+' ======================
+class PayToolApplication
+
+@enduml
