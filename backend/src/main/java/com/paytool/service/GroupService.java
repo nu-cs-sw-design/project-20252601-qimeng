@@ -10,6 +10,7 @@ import com.paytool.model.User;
 import com.paytool.repository.GroupMemberRepository;
 import com.paytool.repository.GroupRepository;
 import com.paytool.repository.UserRepository;
+import com.paytool.service.event.*;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +29,7 @@ public class GroupService {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final GroupMemberRepository groupMemberRepository;
-    private final GroupPublisher groupPublisher;
+    private final GroupEventPublisher eventPublisher;
 
     @Transactional
     public GroupMember joinGroup(Long groupId, Long userId) {
@@ -60,8 +61,9 @@ public class GroupService {
         Group updatedGroup = groupRepository.findById(groupId)
                 .orElseThrow(() -> new CustomException("Group not found"));
 
-        // Publish group update
-        groupPublisher.publishGroupStatus(groupId.toString(), updatedGroup);
+        // Publish member joined event
+        GroupMemberJoinedEvent event = new GroupMemberJoinedEvent(groupId, updatedGroup, savedMember);
+        eventPublisher.publishMemberJoined(event);
 
         return savedMember;
     }
@@ -71,10 +73,15 @@ public class GroupService {
         GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
                 .orElseThrow(() -> new CustomException("Member not found"));
 
+        MemberStatus oldStatus = member.getStatus();
         member.setStatus(status);
         member = groupMemberRepository.save(member);
 
-        groupPublisher.publishMemberStatus(groupId.toString(), member);
+        // Publish member status changed event
+        GroupMemberStatusChangedEvent event = new GroupMemberStatusChangedEvent(
+            groupId, member, oldStatus, status);
+        eventPublisher.publishMemberStatusChanged(event);
+        
         return member;
     }
 
@@ -86,12 +93,17 @@ public class GroupService {
                 .orElseThrow(() -> new CustomException("Group not found"));
 
         // Validate status transition if needed
-        validateStatusTransition(group.getStatus(), status);
+        GroupStatus oldStatus = group.getStatus();
+        validateStatusTransition(oldStatus, status);
 
         group.setStatus(status);
         Group updatedGroup = groupRepository.save(group);
 
-        groupPublisher.publishGroupStatus(groupId.toString(), updatedGroup);
+        // Publish group status changed event
+        GroupStatusChangedEvent event = new GroupStatusChangedEvent(
+            groupId, updatedGroup, oldStatus, status);
+        eventPublisher.publishGroupStatusChanged(event);
+        
         logger.info("Group {} status updated to {}", groupId, status);
         return updatedGroup;
     }
@@ -142,8 +154,9 @@ public class GroupService {
         logger.info("Leader member created with ID: {} for group: {}", 
             savedMember.getId(), savedGroup.getId());
 
-        // Publish group creation event
-        groupPublisher.publishGroupStatus(savedGroup.getId().toString(), savedGroup);
+        // Publish group created event
+        GroupCreatedEvent event = new GroupCreatedEvent(savedGroup.getId(), savedGroup);
+        eventPublisher.publishGroupCreated(event);
 
         return savedGroup;
     }

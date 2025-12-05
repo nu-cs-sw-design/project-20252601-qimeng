@@ -2,73 +2,57 @@ package com.paytool.service;
 
 import com.paytool.model.Group;
 import com.paytool.model.GroupMember;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.paytool.service.event.subscriber.GraphQLGroupEventSubscriber;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Sinks;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
+/**
+ * Adapter class for backward compatibility.
+ * Delegates to GraphQLGroupEventSubscriber for GraphQL subscription functionality.
+ * 
+ * @deprecated This class is kept for backward compatibility.
+ * New code should use GroupEventPublisher and GraphQLGroupEventSubscriber directly.
+ */
 @Component
+@Deprecated
+@RequiredArgsConstructor
 public class GroupPublisher {
-    private static final Logger logger = LoggerFactory.getLogger(GroupPublisher.class);
-    
-    private final Map<String, Sinks.Many<Group>> groupSinks = new ConcurrentHashMap<>();
-    private final Map<String, Sinks.Many<GroupMember>> memberSinks = new ConcurrentHashMap<>();
+    private final GraphQLGroupEventSubscriber graphQLSubscriber;
 
+    /**
+     * Get a Flux stream for group status changes.
+     * Delegates to GraphQLGroupEventSubscriber.
+     */
     public Flux<Group> getGroupStatusFlux(String groupId) {
-        logger.debug("Creating group flux for groupId: {}", groupId);
-        return getOrCreateGroupSink(groupId).asFlux()
-            .doOnSubscribe(s -> logger.debug("Group subscription started for: {}", groupId))
-            .doOnNext(g -> logger.debug("Group update emitted for: {}, status: {}", groupId, g.getStatus()))
-            .doOnError(e -> logger.error("Error in group flux for {}: {}", groupId, e.getMessage(), e))
-            .doOnComplete(() -> logger.debug("Group subscription completed for: {}", groupId));
+        return graphQLSubscriber.getGroupStatusFlux(groupId);
     }
 
+    /**
+     * Get a Flux stream for member status changes.
+     * Delegates to GraphQLGroupEventSubscriber.
+     */
     public Flux<GroupMember> getMemberStatusFlux(String groupId) {
-        logger.debug("Creating member flux for groupId: {}", groupId);
-        return getOrCreateMemberSink(groupId).asFlux()
-            .doOnSubscribe(s -> logger.debug("Member subscription started for: {}", groupId))
-            .doOnNext(m -> logger.debug("Member update emitted for: {}, member: {}", groupId, m.getId()))
-            .doOnError(e -> logger.error("Error in member flux for {}: {}", groupId, e.getMessage(), e))
-            .doOnComplete(() -> logger.debug("Member subscription completed for: {}", groupId));
+        return graphQLSubscriber.getMemberStatusFlux(groupId);
     }
 
+    /**
+     * @deprecated This method is kept for backward compatibility.
+     * Publishing should be done through GroupEventPublisher instead.
+     */
+    @Deprecated
     public void publishGroupStatus(String groupId, Group group) {
-        logger.debug("Publishing group status for groupId: {}, status: {}", groupId, group.getStatus());
-        Sinks.Many<Group> sink = getOrCreateGroupSink(groupId);
-        Sinks.EmitResult result = sink.tryEmitNext(group);
-        if (result.isFailure()) {
-            logger.error("Failed to emit group update for {}: {}", groupId, result);
-        } else {
-            logger.debug("Successfully emitted group update for {}", groupId);
-        }
+        // This method is deprecated. Events should be published through GroupEventPublisher.
+        // Keeping for backward compatibility but it won't work properly without event publisher.
     }
 
+    /**
+     * @deprecated This method is kept for backward compatibility.
+     * Publishing should be done through GroupEventPublisher instead.
+     */
+    @Deprecated
     public void publishMemberStatus(String groupId, GroupMember member) {
-        logger.debug("Publishing member status for groupId: {}, member: {}", groupId, member.getId());
-        Sinks.Many<GroupMember> sink = getOrCreateMemberSink(groupId);
-        Sinks.EmitResult result = sink.tryEmitNext(member);
-        if (result.isFailure()) {
-            logger.error("Failed to emit member update for {}: {}", groupId, result);
-        } else {
-            logger.debug("Successfully emitted member update for {}", groupId);
-        }
-    }
-
-    private Sinks.Many<Group> getOrCreateGroupSink(String groupId) {
-        return groupSinks.computeIfAbsent(groupId, k -> {
-            logger.debug("Creating new group sink for groupId: {}", k);
-            return Sinks.many().multicast().onBackpressureBuffer();
-        });
-    }
-
-    private Sinks.Many<GroupMember> getOrCreateMemberSink(String groupId) {
-        return memberSinks.computeIfAbsent(groupId, k -> {
-            logger.debug("Creating new member sink for groupId: {}", k);
-            return Sinks.many().multicast().onBackpressureBuffer();
-        });
+        // This method is deprecated. Events should be published through GroupEventPublisher.
+        // Keeping for backward compatibility but it won't work properly without event publisher.
     }
 } 

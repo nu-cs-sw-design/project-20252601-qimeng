@@ -2,7 +2,7 @@ package com.paytool.controller;
 
 import com.paytool.model.Group;
 import com.paytool.model.GroupMember;
-import com.paytool.service.GroupPublisher;
+import com.paytool.service.event.subscriber.GraphQLGroupEventSubscriber;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,12 +16,12 @@ import reactor.core.publisher.Flux;
 public class SubscriptionResolver {
     private static final Logger logger = LoggerFactory.getLogger(SubscriptionResolver.class);
     
-    private final GroupPublisher groupPublisher;
+    private final GraphQLGroupEventSubscriber graphQLSubscriber;
 
     @SubscriptionMapping("groupStatusChanged")
     public Flux<Group> groupStatusChanged(@Argument("groupId") String groupId) {
         logger.debug("Group subscription established for groupId: {}", groupId);
-        return groupPublisher
+        return graphQLSubscriber
             .getGroupStatusFlux(groupId)
             .doOnNext(g -> logger.debug("Emitting group update: {}", g))
             .doOnCancel(() -> logger.debug("Group subscription cancelled for {}", groupId))
@@ -31,19 +31,11 @@ public class SubscriptionResolver {
     @SubscriptionMapping("memberStatusChanged")
     public Flux<GroupMember> memberStatusChanged(@Argument("groupId") String groupId) {
         logger.debug("Member subscription established for groupId: {}", groupId);
-        return groupPublisher
+        return graphQLSubscriber
             .getMemberStatusFlux(groupId)
             .doOnNext(m -> logger.debug("Emitting member update: {}", m))
             .doOnCancel(() -> logger.debug("Member subscription cancelled for {}", groupId))
             .doOnError(e -> logger.error("Error in member subscription for {}: {}", groupId, e.getMessage()));
-    }
-
-    public void publishGroupUpdate(String groupId, Group group) {
-        groupPublisher.publishGroupStatus(groupId, group);
-    }
-
-    public void publishMemberUpdate(String groupId, GroupMember member) {
-        groupPublisher.publishMemberStatus(groupId, member);
     }
 }
 

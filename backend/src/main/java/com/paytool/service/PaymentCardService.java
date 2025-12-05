@@ -10,6 +10,8 @@ import com.paytool.model.PaymentCardStatus;
 import com.paytool.repository.GroupMemberRepository;
 import com.paytool.repository.GroupRepository;
 import com.paytool.repository.PaymentCardRepository;
+import com.paytool.service.event.GroupEventPublisher;
+import com.paytool.service.event.GroupStatusChangedEvent;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +28,7 @@ public class PaymentCardService {
     private final PaymentCardRepository paymentCardRepository;
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
-    private final GroupPublisher groupPublisher;
+    private final GroupEventPublisher eventPublisher;
 
     @Transactional
     public PaymentCard generatePaymentCard(Long groupId) {
@@ -70,11 +72,14 @@ public class PaymentCardService {
             savedCard.getId(), groupId);
 
         // Update group status to COMPLETED
+        GroupStatus oldStatus = group.getStatus();
         group.setStatus(GroupStatus.COMPLETED);
         Group updatedGroup = groupRepository.save(group);
         
-        // Publish group status update event
-        groupPublisher.publishGroupStatus(groupId.toString(), updatedGroup);
+        // Publish group status changed event
+        GroupStatusChangedEvent event = new GroupStatusChangedEvent(
+            groupId, updatedGroup, oldStatus, GroupStatus.COMPLETED);
+        eventPublisher.publishGroupStatusChanged(event);
         
         logger.info("Group {} status updated to COMPLETED", groupId);
         return savedCard;
