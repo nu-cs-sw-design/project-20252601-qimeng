@@ -47,6 +47,13 @@ public class Group {
     @Column(name = "total_people", nullable = false)
     private Integer totalPeople;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "split_strategy_type")
+    private SplitStrategyType splitStrategyType;
+
+    @Column(name = "split_strategy_parameters", columnDefinition = "TEXT")
+    private String splitStrategyParameters;
+
     // getter 和 setter
     public Integer getTotalPeople() {
         return totalPeople;
