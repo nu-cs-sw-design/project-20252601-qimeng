@@ -22,6 +22,8 @@ package "Model" {
         +status: GroupStatus
         +qrCode: String
         +totalPeople: Integer
+        +splitStrategyType: SplitStrategyType
+        +splitStrategyParameters: String
         +createdAt: LocalDateTime
         +updatedAt: LocalDateTime
     }
@@ -81,6 +83,11 @@ package "Model" {
         FAILED
         CANCELLED
     }
+
+    enum SplitStrategyType {
+        EQUAL
+        PERCENTAGE
+    }
 }
 
 ' --- Associations (no labels) ---
@@ -93,6 +100,7 @@ Transaction "many" --> "1" User
 GroupMember "many" --> "1" Group
 PaymentCard "many" --> "1" Group
 AuthPayload --> User
+Group --> SplitStrategyType
 
 
 ' ======================
@@ -126,6 +134,29 @@ package "Service" {
     class TransactionService
 }
 
+
+package "Service.Split" {
+    interface SplitStrategy {
+        +calculateSplit(totalAmount, members, parameters): Map<Long, Double>
+    }
+    
+    class EqualSplitStrategy {
+        +calculateSplit(totalAmount, members, parameters): Map<Long, Double>
+    }
+    
+    class PercentageSplitStrategy {
+        +calculateSplit(totalAmount, members, parameters): Map<Long, Double>
+    }
+    
+    class SplitStrategyFactory {
+        +getStrategy(type: SplitStrategyType): SplitStrategy
+    }
+}
+
+SplitStrategy <|.. EqualSplitStrategy
+SplitStrategy <|.. PercentageSplitStrategy
+SplitStrategyFactory --> SplitStrategy
+
 UserService --> UserRepository
 UserService --> PasswordEncoder
 
@@ -140,6 +171,7 @@ GroupService --> GroupRepository
 GroupService --> GroupMemberRepository
 GroupService --> UserRepository
 GroupService --> GroupPublisher
+GroupService --> SplitStrategyFactory
 
 GroupPublisher ..> Group
 GroupPublisher ..> GroupMember
